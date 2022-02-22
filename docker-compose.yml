@@ -1,0 +1,9 @@
+version: '3'
+services:
+  python3:
+    container_name: 'python3'
+    build: .
+    working_dir: '/root/src'
+    tty: true
+    volumes:
+      - ./src:/root/src
