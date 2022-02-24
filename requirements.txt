@@ -1,3 +1,5 @@
 fastapi
 uvicorn
+fastapi-login
+python-multipart
 google-reminder-api-wrapper
