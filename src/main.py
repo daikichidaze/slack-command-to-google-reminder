@@ -1,3 +1,4 @@
+import uvicorn
 import os
 
 from fastapi import Depends, FastAPI
@@ -52,3 +53,7 @@ def login(data: OAuth2PasswordRequestForm = Depends()):
         data=dict(sub=email)
     )
     return {'access_token': access_token, 'token_type': 'bearer'}
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8080)
