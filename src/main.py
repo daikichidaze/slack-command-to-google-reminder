@@ -1,59 +1,50 @@
-import uvicorn
 import os
+import hashlib
+import hmac
+from flask import Flask, request
 
-from fastapi import Depends, FastAPI
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi_login import LoginManager
-from fastapi_login.exceptions import InvalidCredentialsException
 from google_reminder_api_wrapper import ReminderApi
 
-import db
+SLACK_SIGNING_SECRET = os.environ['SLACK_SIGNING_SECRET']
+SLACK_OAUTH_ACCESS_TOKEN = os.environ['SLACK_OAUTH_ACCESS_TOKEN']
 
-app = FastAPI()
-manager = LoginManager(os.environ['SECRET'], token_url='/auth/token')
-
-
-@app.get("/")
-def index(user=Depends(manager)):
-    return {"message": "API for google reminder"}
+app = Flask(__name__)
 
 
-@app.post("/set-remainder")
-async def set_remainder(text: str, dt: str):
-    # set_env_val(auth)
+def verify(request):
+    try:
+        slack_secret = bytes(SLACK_SIGNING_SECRET, 'utf-8')
+        timestamp = request.headers['X-Slack-Request-Timestamp']
+        request_data = request.get_data().decode('utf-8')
+        base_string = f"v0:{timestamp}:{request_data}".encode('utf-8')
+
+        my_signature = 'v0=' + \
+            hmac.new(slack_secret, base_string, hashlib.sha256).hexdigest()
+
+        result = hmac.compare_digest(
+            my_signature, request.headers['X-Slack-Signature'])
+    except:
+        return False
+
+    return result
+
+
+def set_reminder(text: str, dt: str):
     try:
         api = ReminderApi()
         new_reminder = api.create(text, dt)
     except:
-        raise {"message": "Reminder setting error"}
-    return {"message": "Reminder added"}
-
-# For user auth
+        return False
+    return True
 
 
-@manager.user_loader()
-def load_user(email: str):
-    user = db.db.get(email)
-    return user
+@app.route('/goremind', methods=['POST'])
+def main():
+    if verify(request):
+        return 'ok'
+    else:
+        return ('Request failed verification.', 401)
 
 
-@app.post('/auth/token')
-def login(data: OAuth2PasswordRequestForm = Depends()):
-    email = data.username
-    password = data.password
-
-    # we are using the same function to retrieve the user
-    user = load_user(email)
-    if not user:
-        raise InvalidCredentialsException  # you can also use your own HTTPException
-    elif password != user['password']:
-        raise InvalidCredentialsException
-
-    access_token = manager.create_access_token(
-        data=dict(sub=email)
-    )
-    return {'access_token': access_token, 'token_type': 'bearer'}
-
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=os.environ.get('PORT', '8080'))
