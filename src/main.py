@@ -7,6 +7,7 @@ from google_reminder_api_wrapper import ReminderApi
 
 SLACK_SIGNING_SECRET = os.environ['SLACK_SIGNING_SECRET']
 SLACK_OAUTH_ACCESS_TOKEN = os.environ['SLACK_OAUTH_ACCESS_TOKEN']
+datetime_index = 16
 
 app = Flask(__name__)
 
@@ -38,10 +39,21 @@ def set_reminder(text: str, dt: str):
     return True
 
 
+def define_request_texts(text):
+    title = text[:-datetime_index-1]
+    dt = text[-datetime_index:]
+    return title, dt
+
+
 @app.route('/goremind', methods=['POST'])
 def main():
     if verify(request):
-        return 'ok'
+        title, dt = define_request_texts(request.form['text'])
+        if set_reminder(title, dt):
+            return "done"
+        else:
+            return ('Google reminder query was not allowed', 405)
+
     else:
         return ('Request failed verification.', 401)
 

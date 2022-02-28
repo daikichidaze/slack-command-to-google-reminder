@@ -1,5 +1,2 @@
-fastapi
-uvicorn
-fastapi-login
-python-multipart
+Flask
 google-reminder-api-wrapper
