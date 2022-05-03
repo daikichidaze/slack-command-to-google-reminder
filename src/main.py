@@ -28,18 +28,14 @@ def verify(request):
             my_signature, request.headers['X-Slack-Signature'])
     except Exception as e:
         app.logger.error(e)
-        print(e)
         return False
 
     return result
 
 
 def set_reminder(text: str, dt: str):
-    try:
-        api = ReminderApi()
-        new_reminder = api.create(text, dt)
-    except:
-        return False
+    api = ReminderApi()
+    new_reminder = api.create(text, dt)
     return True
 
 
@@ -54,7 +50,7 @@ def main():
     if verify(request):
         title, dt = define_request_texts(request.form['text'])
         if set_reminder(title, dt):
-            return "done"
+            return ("Finished", 200)
         else:
             return ('Google reminder query was not allowed', 405)
 
