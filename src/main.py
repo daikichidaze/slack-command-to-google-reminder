@@ -1,6 +1,7 @@
 import os
 import hashlib
 import hmac
+import logging
 from flask import Flask, request
 
 from google_reminder_api_wrapper import ReminderApi
@@ -10,6 +11,7 @@ SLACK_OAUTH_ACCESS_TOKEN = os.environ['SLACK_OAUTH_ACCESS_TOKEN']
 datetime_index = 16
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 
 def verify(request):
@@ -24,7 +26,9 @@ def verify(request):
 
         result = hmac.compare_digest(
             my_signature, request.headers['X-Slack-Signature'])
-    except:
+    except Exception as e:
+        app.logger.error(e)
+        print(e)
         return False
 
     return result
@@ -59,4 +63,4 @@ def main():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=os.environ.get('PORT', '8080'))
+    app.run(host='0.0.0.0', port=os.environ.get('PORT', '8080'), debug=True)
