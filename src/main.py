@@ -2,6 +2,8 @@ import os
 import hashlib
 import hmac
 import logging
+import threading
+import requests
 from flask import Flask, request
 
 from google_reminder_api_wrapper import ReminderApi
@@ -33,10 +35,29 @@ def verify(request):
     return result
 
 
-def set_reminder(text: str, dt: str):
-    api = ReminderApi()
-    new_reminder = api.create(text, dt)
-    return True
+def slash_processing(slack_request):
+    title, dt = define_request_texts(slack_request['text'])
+    response_url = slack_request["response_url"]
+
+    if set_reminder(title, dt):
+        txt = 'Create a new reminder!'
+    else:
+        txt = 'Unknown error in Reminder creation'
+
+    message = {"text": txt}
+
+    # response to Slack after processing is finished
+    res = requests.post(response_url, json=message)
+    return
+
+
+def set_reminder(text: str, dt: str) -> bool:
+    try:
+        api = ReminderApi()
+        new_reminder = api.create(text, dt)
+        return True
+    except:
+        return False
 
 
 def define_request_texts(text):
@@ -45,14 +66,15 @@ def define_request_texts(text):
     return title, dt
 
 
-@app.route('/goremind', methods=['POST'])
-def main():
+@app.route('/slack-slash', methods=['POST'])
+def register_from_slash():
     if verify(request):
-        title, dt = define_request_texts(request.form['text'])
-        if set_reminder(title, dt):
-            return ("Finished", 200)
-        else:
-            return ('Google reminder query was not allowed', 405)
+        x = threading.Thread(
+            target=slash_processing,
+            args=(request.form,)
+        )
+        x.start()
+        return ('Starting register a new reminder...', 200)
 
     else:
         return ('Request failed verification.', 401)
